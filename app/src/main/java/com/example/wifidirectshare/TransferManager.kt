@@ -45,6 +45,7 @@ class TransferManager(private val context: Context) {
     val transfers: StateFlow<List<TransferView>> = _transfers.asStateFlow()
 
     @Volatile var remoteIp: String? = null
+    @Volatile var isGroupOwner: Boolean = false
 
     private class LiveJob(
         val id: String,
