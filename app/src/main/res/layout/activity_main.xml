@@ -10,44 +10,35 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/status_idle"
-        android:textSize="16sp"
-        android:paddingBottom="12dp" />
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:paddingBottom="8dp" />
 
-    <Button
-        android:id="@+id/discoverButton"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/btn_discover" />
+        android:orientation="horizontal">
 
-    <Button
-        android:id="@+id/stopButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/btn_stop" />
+        <Button
+            android:id="@+id/discoverButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/btn_discover" />
 
-    <Button
-        android:id="@+id/startServerButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/btn_start_server" />
-
-    <Button
-        android:id="@+id/pickFileButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/btn_pick_file" />
-
-    <Button
-        android:id="@+id/sendButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Send Picked File" />
+        <Button
+            android:id="@+id/stopButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/btn_stop" />
+    </LinearLayout>
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingTop="16dp"
-        android:text="Nearby peers:"
+        android:paddingTop="12dp"
+        android:text="@string/label_peers"
         android:textStyle="bold" />
 
     <androidx.recyclerview.widget.RecyclerView
@@ -56,13 +47,22 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <TextView
-        android:id="@+id/logText"
+    <Button
+        android:id="@+id/sendButton"
         android:layout_width="match_parent"
-        android:layout_height="120dp"
-        android:scrollbars="vertical"
-        android:background="#11000000"
-        android:padding="8dp"
-        android:textSize="11sp"
-        android:typeface="monospace" />
+        android:layout_height="wrap_content"
+        android:text="@string/btn_pick_files" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="12dp"
+        android:text="@string/label_transfers"
+        android:textStyle="bold" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/transfersList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="2" />
 </LinearLayout>

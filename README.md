@@ -1,22 +1,22 @@
-# WiFi Direct Share
+# WiFi Direct Share (v2)
 
-Android-to-Android file sharing over Wi-Fi Direct (P2P), no router required.
+Symmetric Android-to-Android file sharing over Wi-Fi Direct. Both devices can send and receive simultaneously. Files land in the shared **Downloads** folder.
 
 ## Build
-- Locally: `gradle assembleDebug`
-- CI: push to `main`; the build workflow uploads `app-debug.apk` as an artifact.
+- CI: push to `main`; the workflow uploads `app-debug.apk`.
+- Local: `gradle assembleDebug`.
 
 ## Use
-1. Install on two devices.
-2. Tap **Discover Peers** on both.
-3. Tap a peer name to connect (one becomes group owner).
-4. On the **group owner**, tap **Start Receive Server**.
-5. On either device, tap **Pick File to Send**, then **Send Picked File**.
-   Files are saved to `Android/data/com.example.wifidirectshare/files/Download/`.
-
-## Permissions
-Location (pre-13) / Nearby Wi-Fi Devices + Notifications (13+). Required by Android for Wi-Fi Direct.
+1. Install on two phones.
+2. Tap **Discover** on both. Wait for peers.
+3. Tap a peer on **one** phone only. The system forms a P2P group.
+4. Both phones now show "Connected as …". Both show a **Send Files** button.
+5. On either (or both) phones: tap **Send Files**, pick one or more files.
+6. Transfers appear in the list with a live progress bar.
+   Destination: `Downloads/<filename>` on the receiving phone.
 
 ## Notes
-- Verified to compile via CI; runtime P2P behavior must be tested on two physical devices.
-- Transfer uses a plain TCP socket on port 8988 over the P2P interface.
+- 3 parallel outgoing transfers per device; incoming unlimited.
+- Files received on API 29+ go through `MediaStore.Downloads` → visible in any file manager.
+- Handshake: client sends `0x02 REGISTER` to `192.168.49.1:8988` on connect, so the GO learns the client IP. Both directions then work symmetrically.
+- Runtime P2P behaviour must be validated on two physical devices. CI only verifies compilation.

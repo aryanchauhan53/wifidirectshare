@@ -5,66 +5,49 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
-import android.os.Environment
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStream
-import java.net.ServerSocket
-import java.util.concurrent.Executors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import java.net.InetSocketAddress
+import java.net.Socket
 
 class FileTransferService : Service() {
 
-    private val executor = Executors.newSingleThreadExecutor()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    lateinit var transferManager: TransferManager
+        private set
+    private var receiverServer: ReceiverServer? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(1, buildNotification())
-        executor.execute {
-            try {
-                ServerSocket(PORT).use { server ->
-                    val socket = server.accept()
-                    socket.use { s ->
-                        val input = s.getInputStream()
-                        val nameLen = readLong(input)
-                        val nameBytes = ByteArray(nameLen.toInt())
-                        readFully(input, nameBytes)
-                        val name = String(nameBytes, Charsets.UTF_8)
-                        val size = readLong(input)
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+        transferManager = TransferManager(this)
+        receiverServer = ReceiverServer(this, transferManager) { ip ->
+            if (!transferManager.isGroupOwner) transferManager.remoteIp = ip
+        }.also { it.start() }
+    }
 
-                        val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir
-                        if (!dir.exists()) dir.mkdirs()
-                        val out = File(dir, sanitize(name))
-                        FileOutputStream(out).use { fos ->
-                            val buf = ByteArray(8192)
-                            var remaining = size
-                            while (remaining > 0) {
-                                val r = input.read(buf, 0, minOf(buf.size.toLong(), remaining).toInt())
-                                if (r < 0) break
-                                fos.write(buf, 0, r)
-                                remaining -= r
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                stopSelf()
-            }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startInForeground()
+        val isGo = intent?.getBooleanExtra(EXTRA_IS_GROUP_OWNER, false) ?: false
+        val goAddr = intent?.getStringExtra(EXTRA_GO_ADDRESS)
+        transferManager.isGroupOwner = isGo
+        if (!isGo && goAddr != null) {
+            transferManager.remoteIp = goAddr
+            registerWithGroupOwner(goAddr)
         }
         return START_NOT_STICKY
     }
 
-    override fun onDestroy() {
-        executor.shutdownNow()
-        super.onDestroy()
-    }
-
-    private fun buildNotification(): android.app.Notification {
+    private fun startInForeground() {
         val channelId = "wifidirect_transfer"
         if (Build.VERSION.SDK_INT >= 26) {
             val nm = getSystemService(NotificationManager::class.java)
@@ -74,35 +57,57 @@ class FileTransferService : Service() {
                 )
             }
         }
-        return NotificationCompat.Builder(this, channelId)
+        val notif = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Wi-Fi Direct Share")
-            .setContentText("Waiting for incoming file...")
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentText("Session active")
+            .setSmallIcon(android.R.drawable.stat_sys_upload)
+            .setOngoing(true)
             .build()
-    }
-
-    private fun readLong(input: InputStream): Long {
-        var result = 0L
-        for (i in 0 until 8) result = (result shl 8) or (input.read().toLong() and 0xFF)
-        return result
-    }
-
-    private fun readFully(input: InputStream, buf: ByteArray) {
-        var off = 0
-        while (off < buf.size) {
-            val r = input.read(buf, off, buf.size - off)
-            if (r < 0) break
-            off += r
+        if (Build.VERSION.SDK_INT >= 29) {
+            startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(1, notif)
         }
     }
 
-    private fun sanitize(name: String): String =
-        name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "received_file" }
+    private fun registerWithGroupOwner(goAddr: String) {
+        scope.launch {
+            var attempts = 0
+            while (attempts < 5) {
+                try {
+                    Socket().use { s ->
+                        s.connect(InetSocketAddress(goAddr, ReceiverServer.PORT), 3000)
+                        s.getOutputStream().write(ReceiverServer.MSG_REGISTER)
+                        s.getOutputStream().flush()
+                    }
+                    return@launch
+                } catch (_: Exception) {
+                    attempts++
+                    Thread.sleep(1000)
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        receiverServer?.stop()
+        scope.cancel()
+        instance = null
+        super.onDestroy()
+    }
 
     companion object {
-        const val PORT = 8988
-        fun startReceiver(context: Context) {
-            val i = Intent(context, FileTransferService::class.java)
+        const val EXTRA_IS_GROUP_OWNER = "is_group_owner"
+        const val EXTRA_GO_ADDRESS = "go_address"
+
+        @Volatile var instance: FileTransferService? = null
+            private set
+
+        fun start(context: Context, isGroupOwner: Boolean, goAddress: String?) {
+            val i = Intent(context, FileTransferService::class.java).apply {
+                putExtra(EXTRA_IS_GROUP_OWNER, isGroupOwner)
+                putExtra(EXTRA_GO_ADDRESS, goAddress)
+            }
             if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(i)
             else context.startService(i)
         }

@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">WiFi Direct Share</string>
-    <string name="btn_discover">Discover Peers</string>
+    <string name="btn_discover">Discover</string>
     <string name="btn_stop">Stop</string>
-    <string name="btn_pick_file">Pick File to Send</string>
-    <string name="btn_start_server">Start Receive Server</string>
-    <string name="status_idle">Idle</string>
+    <string name="btn_pick_files">Send Files</string>
+    <string name="status_idle">Not connected</string>
+    <string name="label_peers">Nearby peers</string>
+    <string name="label_transfers">Transfers</string>
 </resources>
